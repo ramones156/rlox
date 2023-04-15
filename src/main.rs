@@ -1,12 +1,14 @@
 #![allow(unused)]
 
+use std::io::{BufRead, Write};
+use std::process::exit;
+
 use anyhow::Result;
+
 use rlox::chunk::Chunk;
 use rlox::compiler::Compiler;
 use rlox::op_code::OpCode::{OP_ADD, OP_CONSTANT, OP_DIVIDE, OP_NEGATE, OP_RETURN};
 use rlox::vm::{InterpretError, VM};
-use std::io::{BufRead, Write};
-use std::process::exit;
 
 fn main() {
     let args = std::env::args();

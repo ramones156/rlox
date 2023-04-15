@@ -1,7 +1,9 @@
+use std::ops::Sub;
+
+use anyhow::Result;
+
 use crate::op_code::OpCode;
 use crate::value::{Value, ValueArray};
-use anyhow::Result;
-use std::ops::Sub;
 
 pub type Instruction = u8;
 

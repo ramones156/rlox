@@ -1,9 +1,10 @@
-use crate::token::TokenType::*;
-use crate::token::{Token, TokenType};
 use std::iter::Peekable;
 use std::slice;
 use std::slice::Iter;
 use std::thread::{current, scope};
+
+use crate::token::TokenType::*;
+use crate::token::{Token, TokenType};
 
 type PeekableToken<'a> = Peekable<slice::Iter<'a, &'a u8>>;
 

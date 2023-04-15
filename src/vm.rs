@@ -1,14 +1,16 @@
+use std::cell::{Ref, RefCell};
+use std::rc::Rc;
+
+use anyhow::Result;
+use num_enum::TryFromPrimitiveError;
+use thiserror::Error;
+
 use crate::chunk::{Chunk, Instruction};
 use crate::compiler::Compiler;
 use crate::op::BinaryOp;
 use crate::op_code::OpCode;
 use crate::value::Value;
 use crate::vm::InterpretError::COMPILE_ERROR;
-use anyhow::Result;
-use num_enum::TryFromPrimitiveError;
-use std::cell::{Ref, RefCell};
-use std::rc::Rc;
-use thiserror::Error;
 
 const MAX_STACK_SIZE: usize = 256;
 
@@ -127,8 +129,9 @@ pub enum InterpretError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::op_code::OpCode::*;
+
+    use super::*;
 
     #[test]
     fn should_succeed() {

@@ -1,8 +1,8 @@
-use crate::token::{TokenType, TokenType::*};
-
-use crate::compiler::precedence::Precedence;
 use std::collections::HashMap;
 use std::iter::Map;
+
+use crate::compiler::precedence::Precedence;
+use crate::token::{TokenType, TokenType::*};
 
 #[derive(Debug, PartialEq)]
 pub enum ParseFn {
@@ -18,6 +18,7 @@ pub struct ParseRule {
     pub(crate) infix: ParseFn,
     pub(crate) precedence: Precedence,
 }
+
 impl ParseRule {
     pub fn from_token_type(token_type: TokenType) -> Self {
         match token_type {

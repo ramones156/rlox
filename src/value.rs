@@ -12,6 +12,7 @@
 //     }
 // }
 pub type Value = f32;
+
 #[allow(non_camel_case_types)]
 pub enum ValueType {
     VAL_BOOL(bool),

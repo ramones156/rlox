@@ -1,7 +1,6 @@
-mod parse_rule;
-mod parser;
-mod precedence;
-pub mod scanner;
+use std::iter::Scan;
+
+use num_enum::IntoPrimitive;
 
 use crate::chunk::Chunk;
 use crate::compiler::parse_rule::{ParseFn, ParseRule};
@@ -13,8 +12,11 @@ use crate::op_code::OpCode::{
 };
 use crate::token::{Token, TokenType, TokenType::*};
 use crate::value::Value;
-use num_enum::IntoPrimitive;
-use std::iter::Scan;
+
+mod parse_rule;
+mod parser;
+mod precedence;
+pub mod scanner;
 
 pub struct Compiler<'a> {
     parser: Parser,
