@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn should_succeed() {
-        let mut chunk = Chunk::new();
+        let mut chunk = Chunk::default();
 
         let mut constant_index = chunk.add_constant(1.1);
         chunk.write(OP_CONSTANT.into(), 123);

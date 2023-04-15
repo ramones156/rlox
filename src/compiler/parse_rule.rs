@@ -4,7 +4,7 @@ use crate::compiler::precedence::Precedence;
 use std::collections::HashMap;
 use std::iter::Map;
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum ParseFn {
     Grouping,
     Null,

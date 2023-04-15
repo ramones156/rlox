@@ -9,62 +9,55 @@ use std::io::{BufRead, Write};
 use std::process::exit;
 
 fn main() {
-    let mut chunk = Chunk::default();
-    let mut interpreter = Interpreter {
-        compiler: Compiler::new(&mut chunk),
-    };
     let args = std::env::args();
     let argc = args.len();
     if argc == 1 {
-        interpreter.repl();
+        repl();
     } else if argc == 2 {
         let code = args.collect::<Vec<_>>()[1].clone();
-        interpreter.run_file(code);
+        run_file(code);
     } else {
         eprintln!("Usage: rlox: [path]");
         exit(64);
     }
 }
 
-struct Interpreter<'a> {
-    compiler: Compiler<'a>,
+fn repl() {
+    let mut buffer = String::new();
+    loop {
+        std::io::stdout().write_all("> ".as_bytes()).unwrap();
+        std::io::stdout().flush().unwrap();
+
+        let _ = std::io::stdin().lock().read_line(&mut buffer).unwrap();
+        buffer = buffer.trim().to_string();
+        interpret(buffer.clone().into_bytes()).unwrap();
+
+        buffer.clear();
+    }
 }
 
-impl<'a> Interpreter<'a> {
-    fn repl(&mut self) {
-        let mut buffer = String::new();
-        loop {
-            std::io::stdout().write_all("> ".as_bytes()).unwrap();
-            std::io::stdout().flush().unwrap();
+fn interpret(source: Vec<u8>) -> Result<(), InterpretError> {
+    let mut chunk = Chunk::default();
+    let mut compiler = Compiler::new(&mut chunk);
+    compiler.compile(source);
+    Ok(())
+}
 
-            let _ = std::io::stdin().lock().read_line(&mut buffer).unwrap();
-            self.interpret(buffer.clone().into_bytes()).unwrap();
+fn run_file(path: String) -> Result<()> {
+    let source = read_file(path)?;
 
-            buffer.clear();
-        }
+    match interpret(source) {
+        Ok(_) => {}
+        Err(e) => match e {
+            InterpretError::COMPILE_ERROR => exit(65),
+            InterpretError::RUNTIME_ERROR => exit(70),
+        },
     }
 
-    fn interpret(&mut self, source: Vec<u8>) -> Result<(), InterpretError> {
-        self.compiler.compile(source);
-        Ok(())
-    }
+    Ok(())
+}
 
-    fn run_file(&mut self, path: String) -> Result<()> {
-        let source = Self::read_file(path)?;
-
-        match self.interpret(source) {
-            Ok(_) => {}
-            Err(e) => match e {
-                InterpretError::COMPILE_ERROR => exit(65),
-                InterpretError::RUNTIME_ERROR => exit(70),
-            },
-        }
-
-        Ok(())
-    }
-
-    fn read_file(path: String) -> Result<Vec<u8>> {
-        let file = std::fs::read(path)?;
-        Ok(file)
-    }
+fn read_file(path: String) -> Result<Vec<u8>> {
+    let file = std::fs::read(path)?;
+    Ok(file)
 }

@@ -1,9 +1,11 @@
 mod parse_rule;
+mod parser;
 mod precedence;
 pub mod scanner;
 
 use crate::chunk::Chunk;
 use crate::compiler::parse_rule::{ParseFn, ParseRule};
+use crate::compiler::parser::Parser;
 use crate::compiler::precedence::Precedence;
 use crate::compiler::scanner::Scanner;
 use crate::op_code::OpCode::{
@@ -36,7 +38,7 @@ impl<'a> Compiler<'a> {
 
         self.advance();
         self.expression();
-        self.consume(TOKEN_EOF, "Expect end of expression.".to_string());
+        self.consume(TOKEN_EOF, "Expected end of expression.".to_string());
         self.emit_byte(OP_RETURN.into());
 
         if !self.parser.had_error {
@@ -47,8 +49,12 @@ impl<'a> Compiler<'a> {
     }
 
     fn advance(&mut self) {
+        self.parser.previous = self.parser.current.clone();
+
         loop {
             if let Some(token) = self.scanner.scan_token() {
+                self.parser.current = Some(token.clone());
+
                 if token.token_type != TOKEN_ERROR {
                     break;
                 }
@@ -58,14 +64,14 @@ impl<'a> Compiler<'a> {
         }
     }
 
-    fn consume(&mut self, token_type: TokenType, message: String) {
+    fn consume(&mut self, token_type: TokenType, error_message: String) {
         if let Some(current_token) = &self.parser.current {
             if current_token.token_type == token_type {
                 self.advance();
             }
         }
 
-        self.error_at_current(message);
+        self.error_at_current(error_message);
     }
 
     fn expression(&mut self) {
@@ -76,22 +82,31 @@ impl<'a> Compiler<'a> {
     fn parse_precedence(&mut self, presedence: Precedence) {
         self.advance();
         if let Some(previous) = &self.parser.previous.clone() {
-            let prefix_rule = self.get_rule(previous.clone().token_type).prefix;
-            if prefix_rule == ParseFn::Null {
-                eprintln!("Expected expression");
-                return;
+            let rule = self.get_rule(previous.clone().token_type);
+            let prefix_rule = rule.prefix;
+
+            match prefix_rule {
+                ParseFn::Grouping => self.grouping(),
+                ParseFn::Binary => self.binary(),
+                ParseFn::Unary => self.unary(),
+                ParseFn::Number => self.number(),
+                ParseFn::Null => {
+                    self.error("Expected expression.".to_string());
+                    return;
+                }
             }
 
-            // self.prefix_rule();
-
-            loop {
-                let precedence = self.get_rule(previous.clone().token_type).precedence;
-                if precedence == Precedence::PREC_NONE {
-                    break;
-                }
+            while let Some(current) = self.parser.current.clone() {
                 self.advance();
+
                 let infix_rule = self.get_rule(previous.clone().token_type).infix;
-                // self.infix_rule();
+                match infix_rule {
+                    ParseFn::Grouping => self.grouping(),
+                    ParseFn::Binary => self.binary(),
+                    ParseFn::Unary => self.unary(),
+                    ParseFn::Number => self.number(),
+                    ParseFn::Null => {}
+                }
             }
         }
     }
@@ -100,7 +115,7 @@ impl<'a> Compiler<'a> {
         self.expression();
         self.consume(
             TOKEN_RIGHT_PAREN,
-            "Expect ')' after expression.".to_string(),
+            "Expected ')' after expression.".to_string(),
         );
     }
 
@@ -169,6 +184,10 @@ impl<'a> Compiler<'a> {
         }
     }
 
+    fn error(&mut self, message: String) {
+        self.error_at(&self.parser.previous.clone().unwrap(), message);
+    }
+
     fn error_at_current(&mut self, message: String) {
         if let Some(current) = &self.parser.current.clone() {
             self.error_at(current, message)
@@ -180,30 +199,15 @@ impl<'a> Compiler<'a> {
             return;
         }
         self.parser.panic_mode = true;
-        eprint!("[line at {}] Error", token.line);
+        eprint!("[at line {}] Error", token.line);
         if token.token_type == TOKEN_EOF {
             eprint!(" at end");
         } else if token.token_type == TOKEN_ERROR {
         } else {
-            eprint!(" at {}", token.message);
+            eprint!(" at '{}'", token.message);
         }
-    }
-}
 
-struct Parser {
-    current: Option<Token>,
-    previous: Option<Token>,
-    had_error: bool,
-    panic_mode: bool,
-}
-
-impl Parser {
-    fn new() -> Self {
-        Self {
-            current: None,
-            previous: None,
-            had_error: false,
-            panic_mode: true,
-        }
+        println!(": {message}");
+        self.parser.had_error = true;
     }
 }

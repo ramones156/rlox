@@ -1,4 +1,4 @@
-#[derive(PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub(crate) token_type: TokenType,
     pub(crate) message: String,

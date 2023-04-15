@@ -3,14 +3,14 @@ use crate::token::{Token, TokenType};
 use std::iter::Peekable;
 use std::slice;
 use std::slice::Iter;
-use std::thread::scope;
+use std::thread::{current, scope};
 
 type PeekableToken<'a> = Peekable<slice::Iter<'a, &'a u8>>;
 
 pub struct Scanner {
     pub(crate) source: Vec<u8>,
     start: usize,
-    current: usize,
+    pub(crate) current: usize,
     line: usize,
 }
 
@@ -25,12 +25,10 @@ impl Scanner {
     }
 
     pub fn scan_token(&mut self) -> Option<Token> {
+        self.start = self.current;
+
         let source = self.source.clone();
-        let current_token = source
-            .iter()
-            .skip(self.start)
-            .take(self.current)
-            .collect::<Vec<_>>();
+        let current_token = source.iter().skip(self.start).collect::<Vec<_>>();
 
         let mut token = current_token.iter().peekable();
 
@@ -40,13 +38,15 @@ impl Scanner {
             return Some(self.make_token(TOKEN_EOF));
         }
 
-        if let Some(c) = token.next() {
+        if let Some(&c) = token.peek() {
             if Self::is_digit(c) {
                 return Some(self.number(&mut token));
             };
             if Self::is_alpha(c) {
                 return Some(self.identifier(&mut token));
             };
+
+            token.next();
             let token_type = match **c as char {
                 '(' => TOKEN_LEFT_PAREN,
                 ')' => TOKEN_RIGHT_PAREN,
@@ -60,6 +60,7 @@ impl Scanner {
                 '/' => TOKEN_SLASH,
                 '*' => TOKEN_STAR,
                 '!' => {
+                    self.advance();
                     if self.match_token('-') {
                         TOKEN_BANG_EQUAL
                     } else {
@@ -67,6 +68,7 @@ impl Scanner {
                     }
                 }
                 '=' => {
+                    self.advance();
                     if self.match_token('=') {
                         TOKEN_EQUAL_EQUAL
                     } else {
@@ -74,6 +76,7 @@ impl Scanner {
                     }
                 }
                 '<' => {
+                    self.advance();
                     if self.match_token('=') {
                         TOKEN_LESS_EQUAL
                     } else {
@@ -81,6 +84,7 @@ impl Scanner {
                     }
                 }
                 '>' => {
+                    self.advance();
                     if self.match_token('=') {
                         TOKEN_GREATER_EQUAL
                     } else {
@@ -97,6 +101,10 @@ impl Scanner {
         None
     }
 
+    fn advance(&mut self) {
+        self.current += 1;
+    }
+
     fn match_token(&mut self, expected: char) -> bool {
         if let Some(&current) = self.source.get(self.current) {
             if current as char != expected {
@@ -110,11 +118,10 @@ impl Scanner {
     }
 
     fn is_at_end(&self, token: &mut PeekableToken) -> bool {
-        token.peek().is_none()
+        self.start >= self.source.len()
     }
 
     fn make_token(&self, token_type: TokenType) -> Token {
-        dbg!(&token_type);
         let message = self.source[self.start..self.current].to_vec();
         let message = String::from_utf8(message).unwrap();
         Token::new(token_type, message, self.line)
@@ -132,19 +139,26 @@ impl Scanner {
         while let Some(&c) = token.peek() {
             match **c as char {
                 ' ' | '\r' | '\t' => {
+                    self.advance();
+                    self.start = self.current;
                     token.next();
                 }
                 '\n' => {
                     self.line += 1;
+                    self.advance();
+                    self.start = self.current;
                     token.next();
                 }
                 '/' => {
+                    self.advance();
                     token.next();
                     if let Some(&next) = token.peek() {
+                        self.advance();
                         token.next();
                         if **next as char == '/' {
                             while let Some(&next) = token.peek() {
                                 if **next as char != '\n' {
+                                    self.advance();
                                     token.next();
                                 }
                             }
@@ -166,6 +180,7 @@ impl Scanner {
             if **c as char == '\n' {
                 self.line += 1;
             }
+            self.advance();
             token.next();
         }
 
@@ -177,20 +192,24 @@ impl Scanner {
     }
 
     fn number(&mut self, token: &mut PeekableToken) -> Token {
-        while let Some(&c) = token.peek() {
-            if Self::is_digit(c) {
-                token.next();
-            }
-        }
+        // while let Some(&c) = token.peek() {
+        //     if Self::is_digit(c) {
+        //         self.advance();
+        //         token.next();
+        //     }
+        // }
 
         if let Some(&c) = token.peek() {
+            self.advance();
             token.next();
             if let Some(&c2) = token.peek() {
                 if **c as char == '.' && Self::is_digit(c2) {
+                    self.advance();
                     token.next();
 
                     while let Some(&c) = token.peek() {
                         if Self::is_digit(c) {
+                            self.advance();
                             token.next();
                         }
                     }
@@ -202,12 +221,6 @@ impl Scanner {
     }
 
     fn identifier(&mut self, token: &mut PeekableToken) -> Token {
-        while let Some(&c) = token.peek() {
-            if Self::is_alpha(c) || Self::is_digit(c) {
-                token.next();
-            }
-        }
-
         let token = self.identifier_type(token);
         self.make_token(token)
     }
@@ -218,15 +231,8 @@ impl Scanner {
                 'a' => return self.check_keyword(1, "nd", TOKEN_AND),
                 'c' => return self.check_keyword(1, "lass", TOKEN_CLASS),
                 'e' => return self.check_keyword(1, "lse", TOKEN_ELSE),
-                'i' => return self.check_keyword(1, "f", TOKEN_IF),
-                'n' => return self.check_keyword(1, "il", TOKEN_NIL),
-                'o' => return self.check_keyword(1, "r", TOKEN_OR),
-                'p' => return self.check_keyword(1, "rint", TOKEN_PRINT),
-                'r' => return self.check_keyword(1, "eturn", TOKEN_RETURN),
-                's' => return self.check_keyword(1, "uper", TOKEN_SUPER),
-                'v' => return self.check_keyword(1, "ar", TOKEN_VAR),
-                'w' => return self.check_keyword(1, "hile", TOKEN_WHILE),
                 'f' => {
+                    self.advance();
                     token.next();
                     if let Some(&c) = token.peek() {
                         match **c as char {
@@ -237,7 +243,16 @@ impl Scanner {
                         }
                     }
                 }
+                'i' => return self.check_keyword(1, "f", TOKEN_IF),
+                'n' => return self.check_keyword(1, "il", TOKEN_NIL),
+                'o' => return self.check_keyword(1, "r", TOKEN_OR),
+                'p' => return self.check_keyword(1, "rint", TOKEN_PRINT),
+                'r' => return self.check_keyword(1, "eturn", TOKEN_RETURN),
+                's' => return self.check_keyword(1, "uper", TOKEN_SUPER),
+                'v' => return self.check_keyword(1, "ar", TOKEN_VAR),
+                'w' => return self.check_keyword(1, "hile", TOKEN_WHILE),
                 't' => {
+                    self.advance();
                     token.next();
                     if let Some(&c) = token.peek() {
                         match **c as char {
@@ -250,6 +265,7 @@ impl Scanner {
                 _ => {}
             };
         }
+        self.advance();
         TOKEN_IDENTIFIER
     }
 
@@ -265,11 +281,38 @@ impl Scanner {
         let length = rest.len();
         let left = self.start + start;
         let right = left + length;
+        self.current = right;
 
         let possible_rest = String::from_utf8(self.source[left..right].to_vec()).unwrap();
-        if self.current - self.start == start + length && &*possible_rest == rest {
+        if &*possible_rest == rest {
             return token_type;
         }
+
         TOKEN_IDENTIFIER
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_token(scanner: &mut Scanner, token_type: TokenType, token_message: String) {
+        let token = scanner.scan_token();
+        assert!(token.is_some());
+
+        let token = token.unwrap();
+        assert_eq!(token.token_type, token_type);
+        assert_eq!(token.message, token_message);
+    }
+
+    #[test]
+    fn assign_should_succeed() {
+        let source = "var x = 5".to_string().into_bytes();
+        let mut scanner = Scanner::new(source);
+
+        assert_token(&mut scanner, TokenType::TOKEN_VAR, "var".to_string());
+        assert_token(&mut scanner, TokenType::TOKEN_IDENTIFIER, "x".to_string());
+        assert_token(&mut scanner, TokenType::TOKEN_EQUAL, "=".to_string());
+        assert_token(&mut scanner, TokenType::TOKEN_NUMBER, "5".to_string());
     }
 }
