@@ -13,6 +13,7 @@ pub struct Scanner {
     start: usize,
     pub(crate) current: usize,
     line: usize,
+    is_finished: bool,
 }
 
 impl Scanner {
@@ -22,6 +23,7 @@ impl Scanner {
             start: 0,
             current: 0,
             line: 1,
+            is_finished: false,
         }
     }
 
@@ -31,23 +33,29 @@ impl Scanner {
         let source = self.source.clone();
         let current_token = source.iter().skip(self.start).collect::<Vec<_>>();
 
-        let mut token = current_token.iter().peekable();
+        let mut current_token = current_token.iter().peekable();
 
-        self.skip_whitespace(&mut token);
+        self.skip_whitespace(&mut current_token);
 
-        if self.is_at_end(&mut token) {
+        if self.is_finished {
+            return None;
+        }
+
+        if self.is_at_end(&mut current_token) {
+            self.is_finished = true;
             return Some(self.make_token(TOKEN_EOF));
         }
 
-        if let Some(&c) = token.peek() {
+        if let Some(&c) = current_token.peek() {
+            self.start = self.current;
             if Self::is_digit(c) {
-                return Some(self.number(&mut token));
+                return Some(self.number(&mut current_token));
             };
             if Self::is_alpha(c) {
-                return Some(self.identifier(&mut token));
+                return Some(self.identifier(&mut current_token));
             };
-
-            token.next();
+            self.advance();
+            current_token.next();
             let token_type = match **c as char {
                 '(' => TOKEN_LEFT_PAREN,
                 ')' => TOKEN_RIGHT_PAREN,
@@ -61,7 +69,6 @@ impl Scanner {
                 '/' => TOKEN_SLASH,
                 '*' => TOKEN_STAR,
                 '!' => {
-                    self.advance();
                     if self.match_token('-') {
                         TOKEN_BANG_EQUAL
                     } else {
@@ -69,7 +76,6 @@ impl Scanner {
                     }
                 }
                 '=' => {
-                    self.advance();
                     if self.match_token('=') {
                         TOKEN_EQUAL_EQUAL
                     } else {
@@ -77,7 +83,6 @@ impl Scanner {
                     }
                 }
                 '<' => {
-                    self.advance();
                     if self.match_token('=') {
                         TOKEN_LESS_EQUAL
                     } else {
@@ -85,17 +90,18 @@ impl Scanner {
                     }
                 }
                 '>' => {
-                    self.advance();
                     if self.match_token('=') {
                         TOKEN_GREATER_EQUAL
                     } else {
                         TOKEN_GREATER
                     }
                 }
-                '"' => return Some(self.string(&mut token)),
+                '"' => return Some(self.string(&mut current_token)),
                 _ => return Some(self.error_token("Unexpected character.")),
             };
+
             let token = self.make_token(token_type);
+
             return Some(token);
         }
 
@@ -119,19 +125,20 @@ impl Scanner {
     }
 
     fn is_at_end(&self, token: &mut PeekableToken) -> bool {
-        self.start >= self.source.len()
+        self.current == self.source.len()
     }
 
     fn make_token(&self, token_type: TokenType) -> Token {
         let message = self.source[self.start..self.current].to_vec();
         let message = String::from_utf8(message).unwrap();
-        Token::new(token_type, message, self.line)
+        Token::new(token_type, message, self.start, self.line)
     }
 
     fn error_token(&self, message: &str) -> Token {
         Token {
             token_type: TOKEN_ERROR,
             message: message.to_string(),
+            start: self.start,
             line: self.line,
         }
     }
@@ -174,50 +181,53 @@ impl Scanner {
     }
 
     fn string(&mut self, token: &mut PeekableToken) -> Token {
-        while let Some(&c) = token.peek() {
-            if **c as char == '"' {
-                break;
+        loop {
+            if let Some(&c) = token.peek() {
+                self.advance();
+                token.next();
+                if **c as char == '"' {
+                    break;
+                }
+                if **c as char == '\n' {
+                    self.line += 1;
+                }
+            } else {
+                return self.error_token("Unterminated string.");
             }
-            if **c as char == '\n' {
-                self.line += 1;
-            }
-            self.advance();
-            token.next();
-        }
-
-        if token.next().is_none() {
-            return self.error_token("Unterminated string.");
         }
 
         self.make_token(TOKEN_STRING)
     }
 
     fn number(&mut self, token: &mut PeekableToken) -> Token {
-        // while let Some(&c) = token.peek() {
-        //     if Self::is_digit(c) {
-        //         self.advance();
-        //         token.next();
-        //     }
-        // }
-
+        loop {
+            if let Some(&c) = token.peek() {
+                if Self::is_digit(c) {
+                    self.advance();
+                    token.next();
+                    continue;
+                }
+            }
+            break;
+        }
         if let Some(&c) = token.peek() {
-            self.advance();
             token.next();
             if let Some(&c2) = token.peek() {
                 if **c as char == '.' && Self::is_digit(c2) {
                     self.advance();
-                    token.next();
-
-                    while let Some(&c) = token.peek() {
-                        if Self::is_digit(c) {
-                            self.advance();
-                            token.next();
+                    loop {
+                        if let Some(&c) = token.peek() {
+                            if Self::is_digit(c) {
+                                self.advance();
+                                token.next();
+                                continue;
+                            }
                         }
+                        break;
                     }
                 }
             }
         }
-
         self.make_token(TOKEN_NUMBER)
     }
 
@@ -297,13 +307,21 @@ impl Scanner {
 mod tests {
     use super::*;
 
-    fn assert_token(scanner: &mut Scanner, token_type: TokenType, token_message: String) {
+    fn assert_token(
+        scanner: &mut Scanner,
+        token_type: TokenType,
+        token_message: &str,
+        start: usize,
+        line: usize,
+    ) {
         let token = scanner.scan_token();
         assert!(token.is_some());
 
         let token = token.unwrap();
         assert_eq!(token.token_type, token_type);
-        assert_eq!(token.message, token_message);
+        assert_eq!(token.start, start);
+        assert_eq!(token.line, line);
+        assert_eq!(token.message, token_message.to_string());
     }
 
     #[test]
@@ -311,9 +329,44 @@ mod tests {
         let source = "var x = 5".to_string().into_bytes();
         let mut scanner = Scanner::new(source);
 
-        assert_token(&mut scanner, TokenType::TOKEN_VAR, "var".to_string());
-        assert_token(&mut scanner, TokenType::TOKEN_IDENTIFIER, "x".to_string());
-        assert_token(&mut scanner, TokenType::TOKEN_EQUAL, "=".to_string());
-        assert_token(&mut scanner, TokenType::TOKEN_NUMBER, "5".to_string());
+        assert_token(&mut scanner, TokenType::TOKEN_VAR, "var", 0, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_IDENTIFIER, "x", 4, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_EQUAL, "=", 6, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_NUMBER, "5", 8, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_EOF, "", 9, 1);
+    }
+
+    #[test]
+    fn string_should_succeed() {
+        let source = r#"var x = "string""#.to_string().into_bytes();
+        let mut scanner = Scanner::new(source);
+
+        assert_token(&mut scanner, TokenType::TOKEN_VAR, "var", 0, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_IDENTIFIER, "x", 4, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_EQUAL, "=", 6, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_STRING, r#""string""#, 8, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_EOF, "", 16, 1);
+    }
+
+    #[test]
+    fn boolean_should_succeed() {
+        let source = "true".to_string().into_bytes();
+        let mut scanner = Scanner::new(source);
+
+        assert_token(&mut scanner, TokenType::TOKEN_TRUE, "true", 0, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_EOF, "", 4, 1);
+
+        let source = "false".to_string().into_bytes();
+        let mut scanner = Scanner::new(source);
+
+        assert_token(&mut scanner, TokenType::TOKEN_FALSE, "false", 0, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_EOF, "", 5, 1);
+
+        let source = "!false".to_string().into_bytes();
+        let mut scanner = Scanner::new(source);
+
+        assert_token(&mut scanner, TokenType::TOKEN_BANG, "!", 0, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_FALSE, "false", 1, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_EOF, "", 6, 1);
     }
 }

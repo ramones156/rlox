@@ -13,6 +13,7 @@ pub enum ParseFn {
     Number,
 }
 
+#[derive(Debug)]
 pub struct ParseRule {
     pub(crate) prefix: ParseFn,
     pub(crate) infix: ParseFn,
@@ -20,8 +21,8 @@ pub struct ParseRule {
 }
 
 impl ParseRule {
-    pub fn from_token_type(token_type: TokenType) -> Self {
-        match token_type {
+    pub fn from_token_type(token_type: &TokenType) -> Self {
+        match *token_type {
             TOKEN_LEFT_PAREN => ParseRule {
                 prefix: ParseFn::Grouping,
                 infix: ParseFn::Null,

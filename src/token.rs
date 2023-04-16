@@ -2,14 +2,16 @@
 pub struct Token {
     pub(crate) token_type: TokenType,
     pub(crate) message: String,
+    pub(crate) start: usize,
     pub(crate) line: usize,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, message: String, line: usize) -> Self {
+    pub fn new(token_type: TokenType, message: String, start: usize, line: usize) -> Self {
         Self {
             token_type,
             message,
+            start,
             line,
         }
     }

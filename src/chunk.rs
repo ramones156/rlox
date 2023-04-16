@@ -34,7 +34,7 @@ impl Chunk {
     }
 
     pub fn disassemble_chunk(&self, name: String) -> Result<()> {
-        println!("== {name} ==");
+        println!("==== {name:<8}  ====");
 
         let mut offset = 0;
         while offset < self.count {
@@ -76,7 +76,7 @@ impl Chunk {
 
     fn constant_instruction(&self, name: String, offset: usize) -> usize {
         let constant = self.code[offset + 1];
-        print!("{name:-16} {constant:4} ");
+        print!("{name:-16} {constant:02} ");
         print!("{:?}", self.constants.values[constant as usize]);
         println!();
         offset + 2
