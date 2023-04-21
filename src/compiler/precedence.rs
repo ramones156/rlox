@@ -2,7 +2,6 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 #[derive(Debug, PartialEq, PartialOrd, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 /// token expected beforehand
 pub enum Precedence {
     PREC_NONE,

@@ -12,7 +12,7 @@ pub struct Chunk {
     pub(crate) code: Vec<Instruction>,
     count: usize,
     pub(crate) constants: ValueArray,
-    lines: Vec<usize>,
+    pub(crate) lines: Vec<usize>,
 }
 
 impl Chunk {
@@ -52,29 +52,19 @@ impl Chunk {
             print!("{:4} ", self.lines[offset]);
         }
 
-        let instruction = OpCode::try_from(self.code[offset])?;
-
-        Ok(match instruction {
-            OpCode::OP_CONSTANT => self.constant_instruction("OP_CONSTANT".to_string(), offset),
-            OpCode::OP_ADD => Self::simple_instruction("OP_ADD".to_string(), offset),
-            OpCode::OP_SUBTRACT => Self::simple_instruction("OP_SUB".to_string(), offset),
-            OpCode::OP_MULTIPLY => Self::simple_instruction("OP_MUL".to_string(), offset),
-            OpCode::OP_DIVIDE => Self::simple_instruction("OP_DIV".to_string(), offset),
-            OpCode::OP_NEGATE => Self::simple_instruction("OP_NEGATE".to_string(), offset),
-            OpCode::OP_RETURN => Self::simple_instruction("OP_RETURN".to_string(), offset),
-            _ => {
-                println!("Unknown opcode {instruction:?}\n");
-                offset + 1
-            }
+        let op_code = OpCode::try_from(self.code[offset])?;
+        Ok(match op_code {
+            OpCode::OP_CONSTANT => self.constant_instruction("OP_CONSTANT", offset),
+            _ => Self::simple_instruction(&op_code, offset),
         })
     }
 
-    fn simple_instruction(name: String, offset: usize) -> usize {
-        println!("{name}");
+    fn simple_instruction(name: &OpCode, offset: usize) -> usize {
+        println!("{name:?}");
         offset + 1
     }
 
-    fn constant_instruction(&self, name: String, offset: usize) -> usize {
+    fn constant_instruction(&self, name: &str, offset: usize) -> usize {
         let constant = self.code[offset + 1];
         print!("{name:-16} {constant:02} ");
         print!("{:?}", self.constants.values[constant as usize]);

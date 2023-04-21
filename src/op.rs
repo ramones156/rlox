@@ -3,4 +3,6 @@ pub enum BinaryOp {
     Sub,
     Div,
     Mul,
+    Greater,
+    Less,
 }

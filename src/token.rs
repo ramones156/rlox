@@ -17,7 +17,6 @@ impl Token {
     }
 }
 
-#[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     // Single-character tokens.

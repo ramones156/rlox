@@ -6,11 +6,13 @@ use crate::token::{TokenType, TokenType::*};
 
 #[derive(Debug, PartialEq)]
 pub enum ParseFn {
-    Grouping,
-    Null,
     Binary,
-    Unary,
+    Grouping,
+    Literal,
+    Null,
     Number,
+    String,
+    Unary,
 }
 
 #[derive(Debug)]
@@ -79,14 +81,14 @@ impl ParseRule {
                 precedence: Precedence::PREC_FACTOR,
             },
             TOKEN_BANG => ParseRule {
-                prefix: ParseFn::Null,
+                prefix: ParseFn::Unary,
                 infix: ParseFn::Null,
                 precedence: Precedence::PREC_NONE,
             },
             TOKEN_BANG_EQUAL => ParseRule {
                 prefix: ParseFn::Null,
-                infix: ParseFn::Null,
-                precedence: Precedence::PREC_NONE,
+                infix: ParseFn::Binary,
+                precedence: Precedence::PREC_EQUALITY,
             },
             TOKEN_EQUAL => ParseRule {
                 prefix: ParseFn::Null,
@@ -95,28 +97,28 @@ impl ParseRule {
             },
             TOKEN_EQUAL_EQUAL => ParseRule {
                 prefix: ParseFn::Null,
-                infix: ParseFn::Null,
-                precedence: Precedence::PREC_NONE,
+                infix: ParseFn::Binary,
+                precedence: Precedence::PREC_EQUALITY,
             },
             TOKEN_GREATER => ParseRule {
                 prefix: ParseFn::Null,
-                infix: ParseFn::Null,
-                precedence: Precedence::PREC_NONE,
+                infix: ParseFn::Binary,
+                precedence: Precedence::PREC_COMPARISON,
             },
             TOKEN_GREATER_EQUAL => ParseRule {
                 prefix: ParseFn::Null,
-                infix: ParseFn::Null,
-                precedence: Precedence::PREC_NONE,
+                infix: ParseFn::Binary,
+                precedence: Precedence::PREC_COMPARISON,
             },
             TOKEN_LESS => ParseRule {
                 prefix: ParseFn::Null,
-                infix: ParseFn::Null,
-                precedence: Precedence::PREC_NONE,
+                infix: ParseFn::Binary,
+                precedence: Precedence::PREC_COMPARISON,
             },
             TOKEN_LESS_EQUAL => ParseRule {
                 prefix: ParseFn::Null,
-                infix: ParseFn::Null,
-                precedence: Precedence::PREC_NONE,
+                infix: ParseFn::Binary,
+                precedence: Precedence::PREC_COMPARISON,
             },
             TOKEN_IDENTIFIER => ParseRule {
                 prefix: ParseFn::Null,
@@ -124,7 +126,7 @@ impl ParseRule {
                 precedence: Precedence::PREC_NONE,
             },
             TOKEN_STRING => ParseRule {
-                prefix: ParseFn::Null,
+                prefix: ParseFn::String,
                 infix: ParseFn::Null,
                 precedence: Precedence::PREC_NONE,
             },
@@ -149,7 +151,7 @@ impl ParseRule {
                 precedence: Precedence::PREC_NONE,
             },
             TOKEN_FALSE => ParseRule {
-                prefix: ParseFn::Null,
+                prefix: ParseFn::Literal,
                 infix: ParseFn::Null,
                 precedence: Precedence::PREC_NONE,
             },
@@ -169,7 +171,7 @@ impl ParseRule {
                 precedence: Precedence::PREC_NONE,
             },
             TOKEN_NIL => ParseRule {
-                prefix: ParseFn::Null,
+                prefix: ParseFn::Literal,
                 infix: ParseFn::Null,
                 precedence: Precedence::PREC_NONE,
             },
@@ -204,7 +206,7 @@ impl ParseRule {
                 precedence: Precedence::PREC_NONE,
             },
             TOKEN_VAR => ParseRule {
-                prefix: ParseFn::Null,
+                prefix: ParseFn::Literal,
                 infix: ParseFn::Null,
                 precedence: Precedence::PREC_NONE,
             },

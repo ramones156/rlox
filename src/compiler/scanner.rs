@@ -311,7 +311,7 @@ mod tests {
         scanner: &mut Scanner,
         token_type: TokenType,
         token_message: &str,
-        start: usize,
+        start_buffer: usize,
         line: usize,
     ) {
         let token = scanner.scan_token();
@@ -319,9 +319,9 @@ mod tests {
 
         let token = token.unwrap();
         assert_eq!(token.token_type, token_type);
-        assert_eq!(token.start, start);
-        assert_eq!(token.line, line);
         assert_eq!(token.message, token_message.to_string());
+        assert_eq!(token.start, start_buffer);
+        assert_eq!(token.line, line);
     }
 
     #[test]
@@ -368,5 +368,22 @@ mod tests {
         assert_token(&mut scanner, TokenType::TOKEN_BANG, "!", 0, 1);
         assert_token(&mut scanner, TokenType::TOKEN_FALSE, "false", 1, 1);
         assert_token(&mut scanner, TokenType::TOKEN_EOF, "", 6, 1);
+    }
+
+    #[test]
+    fn print_should_succeed() {
+        let source = "print 5".to_string().into_bytes();
+        let mut scanner = Scanner::new(source);
+
+        assert_token(&mut scanner, TokenType::TOKEN_PRINT, "print", 0, 1);
+        assert_token(&mut scanner, TokenType::TOKEN_NUMBER, "5", 6, 1);
+    }
+
+    #[test]
+    fn newline_should_succeed() {
+        let source = "\n3".to_string().into_bytes();
+        let mut scanner = Scanner::new(source);
+
+        assert_token(&mut scanner, TokenType::TOKEN_NUMBER, "3", 1, 2);
     }
 }
